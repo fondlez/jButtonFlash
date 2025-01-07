@@ -3,7 +3,72 @@ local AddonName, Addon = ...
 
 local _G = _G
 
-local GetActionButtonForID = GetActionButtonForID
+--------------------------------------------------------------------------------
+-- client compatibility
+--------------------------------------------------------------------------------
+local display_version, build_number, build_date, ui_version = GetBuildInfo()
+
+-- AnimationGroup subfeatures not supported earlier than 3.1.0 client.
+if not ui_version or ui_version < 30100 then return end
+
+local is_wotlk, is_cata, is_wod, is_legion_or_later
+if ui_version >= 30100 and ui_version <= 30300 then
+  is_wotlk = true
+elseif ui_version >= 40000 and ui_version <= 40300 then
+  is_cata = true
+elseif ui_version >= 50001 and ui_version <= 50400 then
+  is_mop = true
+elseif ui_version >= 60000 and ui_version <= 60200 then
+  is_wod = true
+else
+  is_legion_or_later = true
+end
+
+local GetActionButtonForID
+if is_wotlk or is_cata then
+  local VEHICLE_MAX_ACTIONBUTTONS = _G.VEHICLE_MAX_ACTIONBUTTONS --6
+  
+  GetActionButtonForID = function(id)
+    if VehicleMenuBar:IsShown() and id <= VEHICLE_MAX_ACTIONBUTTONS then
+      return _G["VehicleMenuBarActionButton"..id]
+    elseif BonusActionBarFrame:IsShown() then
+      return _G["BonusActionButton"..id]
+    else
+      return _G["ActionButton"..id]
+    end
+  end
+else
+  local NUM_OVERRIDE_BUTTONS = _G.NUM_OVERRIDE_BUTTONS --6
+  local isInPetBattle = _G.C_PetBattles.IsInBattle
+  local function isPetBattle()
+    if isInPetBattle() and PetBattleFrame then 
+      return true
+    end
+    
+    return false
+  end
+  
+  if is_mop or is_wod then
+    GetActionButtonForID = function(id)
+      if isPetBattle() then return end
+      
+      if OverrideActionBar and OverrideActionBar:IsShown() then
+        if id > NUM_OVERRIDE_BUTTONS then return end
+        return _G["OverrideActionBarButton"..id]
+      else
+        return _G["ActionButton"..id]
+      end
+    end
+  -- Legion or later.
+  else
+    local original = _G.GetActionButtonForID
+    GetActionButtonForID = function(id)
+      if isPetBattle() then return end
+      return original(id)
+    end
+  end
+end
+--------------------------------------------------------------------------------
 
 local TEXTURE_OFFSET = 3
 
@@ -25,7 +90,7 @@ end
 function Addon:OnEvent(event, ...)
   local action = self[event]
 
-  if (action) then
+  if action then
     action(self, ...)
   end
 end
@@ -33,6 +98,18 @@ end
 function Addon:PLAYER_LOGIN()
   self:SetupButtonFlash()
   self:HookActionEvents()
+end
+
+local setAlphaDelta
+if is_wotlk or is_cata or is_mop then
+  setAlphaDelta = function(alpha)
+    alpha:SetChange(1)
+  end
+else
+  setAlphaDelta = function(alpha)
+    alpha:SetFromAlpha(0)
+    alpha:SetToAlpha(1)
+  end
 end
 
 function Addon:SetupButtonFlash()
@@ -49,8 +126,7 @@ function Addon:SetupButtonFlash()
   local animationGroup = texture:CreateAnimationGroup()
 
   local alpha = animationGroup:CreateAnimation('Alpha')
-  alpha:SetFromAlpha(0)
-  alpha:SetToAlpha(1)
+  setAlphaDelta(alpha)
   alpha:SetDuration(0)
   alpha:SetOrder(1)
 
@@ -90,24 +166,30 @@ do
 end
 
 function Addon:ActionButtonDown(id)
+  if not id then return end
+  
   local button = GetActionButtonForID(id)
-  if (button) then
+  if button then
     self:AnimateButton(button)
   end
 end
 
 function Addon:MultiActionButtonDown(bar, id)
-  local button = _G[bar..'Button'..id]
-  if (button) then
+  if not bar or not id then return end
+  
+  local button = _G[bar.."Button"..id]
+  if button then
     self:AnimateButton(button)
   end
 end
 
 function Addon:AnimateButton(button)
-  if (not button:IsVisible()) then return end
+  if not button:IsVisible() then return end
 
-  self.frame:SetPoint('TOPLEFT', button, 'TOPLEFT', -TEXTURE_OFFSET, TEXTURE_OFFSET)
-  self.frame:SetPoint('BOTTOMRIGHT', button, 'BOTTOMRIGHT', TEXTURE_OFFSET, -TEXTURE_OFFSET)
+  self.frame:SetPoint('TOPLEFT', button, 'TOPLEFT', -TEXTURE_OFFSET, 
+    TEXTURE_OFFSET)
+  self.frame:SetPoint('BOTTOMRIGHT', button, 'BOTTOMRIGHT', TEXTURE_OFFSET, 
+    -TEXTURE_OFFSET)
 
   self.animationGroup:Stop()
   self.animationGroup:Play()

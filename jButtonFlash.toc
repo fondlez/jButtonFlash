@@ -1,7 +1,13 @@
 ## Interface: 80100
 ## Title: jButtonFlash
 ## Notes: Add flash animation to pressed action button
-## Version: 1.5
-## Author: jwldnr
+## Version: 1.0.0-fondlez
+## Author: fondlez
+## X-Website: http://github.com/fondlez/jButtonFlash
+## X-Category: Action Bars
+## OG-Author: Jean Alexander Woldner aka. jwldnr
+## OG-Repo: https://github.com/woldner/jButtonFlash
+## OG-Git-Tag: 8ea733548c6032eba253078de70ac564cd10e7a8
+## DefaultState: enabled
 
 jButtonFlash.lua
