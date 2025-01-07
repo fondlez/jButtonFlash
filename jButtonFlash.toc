@@ -1,0 +1,7 @@
+## Interface: 80100
+## Title: jButtonFlash
+## Notes: Add flash animation to pressed action button
+## Version: 1.5
+## Author: jwldnr
+
+jButtonFlash.lua
