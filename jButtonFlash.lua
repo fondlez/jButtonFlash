@@ -1,6 +1,4 @@
--- locals and speed
 local AddonName, Addon = ...
-
 local _G = _G
 
 --------------------------------------------------------------------------------
@@ -68,9 +66,24 @@ else
     end
   end
 end
+
+local setAlphaDelta
+if is_wotlk or is_cata or is_mop then
+  setAlphaDelta = function(alpha)
+    alpha:SetChange(1)
+  end
+else
+  setAlphaDelta = function(alpha)
+    alpha:SetFromAlpha(0)
+    alpha:SetToAlpha(1)
+  end
+end
+
 --------------------------------------------------------------------------------
 
-local TEXTURE_OFFSET = 3
+local BARTENDER4_NAME = "Bartender4"
+local BARTENDER4_BUTTONS_MAX = 120
+local BARTENDER4_BUTTONS_PET_MAX = 10
 
 -- main
 function Addon:Load()
@@ -96,19 +109,14 @@ function Addon:OnEvent(event, ...)
 end
 
 function Addon:PLAYER_LOGIN()
+  -- Blizzard buttons
   self:SetupButtonFlash()
   self:HookActionEvents()
-end
-
-local setAlphaDelta
-if is_wotlk or is_cata or is_mop then
-  setAlphaDelta = function(alpha)
-    alpha:SetChange(1)
-  end
-else
-  setAlphaDelta = function(alpha)
-    alpha:SetFromAlpha(0)
-    alpha:SetToAlpha(1)
+  
+  -- Addon "Bartender4" buttons
+  local bt4 = IsAddOnLoaded(BARTENDER4_NAME)
+  if bt4 then
+    self:HookBartender4Buttons()
   end
 end
 
@@ -150,6 +158,7 @@ function Addon:SetupButtonFlash()
 end
 
 -- hooks
+-- - Blizzard buttons
 do
   local function Button_ActionButtonDown(id)
     Addon:ActionButtonDown(id)
@@ -162,6 +171,33 @@ do
   function Addon:HookActionEvents()
     hooksecurefunc('ActionButtonDown', Button_ActionButtonDown)
     hooksecurefunc('MultiActionButtonDown', Button_MultiActionButtonDown)
+  end
+end
+
+-- - Bartender4 support
+do
+  local function Button_OnMouseDown(self, _)
+      Addon:AnimateButton(self)
+  end
+
+  -- Note. using RegisterForClicks and OnClick can result in extra effects
+  -- such as sounds for each part of the click. So, use OnMouseDown instead
+  function Addon:HookBartender4Buttons()
+    -- Player action buttons
+    for i = 1, BARTENDER4_BUTTONS_MAX do
+      local button = _G["BT4Button" .. i]
+      if button then
+        button:HookScript("OnMouseDown", Button_OnMouseDown)
+      end
+    end
+    
+    -- Pet action buttons
+    for i = 1, BARTENDER4_BUTTONS_PET_MAX do
+      local button = _G["BT4PetButton" .. i]
+      if button then
+        button:HookScript("OnMouseDown", Button_OnMouseDown)
+      end
+    end
   end
 end
 
@@ -183,17 +219,21 @@ function Addon:MultiActionButtonDown(bar, id)
   end
 end
 
-function Addon:AnimateButton(button)
-  if not button:IsVisible() then return end
+do
+  local TEXTURE_OFFSET = 3
+  
+  function Addon:AnimateButton(button)
+    if not button:IsVisible() then return end
 
-  self.frame:SetPoint('TOPLEFT', button, 'TOPLEFT', -TEXTURE_OFFSET, 
-    TEXTURE_OFFSET)
-  self.frame:SetPoint('BOTTOMRIGHT', button, 'BOTTOMRIGHT', TEXTURE_OFFSET, 
-    -TEXTURE_OFFSET)
+    self.frame:SetPoint('TOPLEFT', button, 'TOPLEFT', -TEXTURE_OFFSET, 
+      TEXTURE_OFFSET)
+    self.frame:SetPoint('BOTTOMRIGHT', button, 'BOTTOMRIGHT', TEXTURE_OFFSET, 
+      -TEXTURE_OFFSET)
 
-  self.animationGroup:Stop()
-  self.animationGroup:Play()
+    self.animationGroup:Stop()
+    self.animationGroup:Play()
+  end
 end
 
--- call
+-- begin
 Addon:Load()
